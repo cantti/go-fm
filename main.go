@@ -1,14 +1,23 @@
 package main
 
 import (
-	"github.com/rivo/tview"
+	"io/fs"
 	"os"
 	"os/user"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
-type PanelView struct {
+type DirEntry struct {
+	file     fs.DirEntry
+	selected bool
+}
+
+type Panel struct {
 	dirPath string
 	ui_list *tview.List
+	entries []DirEntry
 }
 
 type Tui struct {
@@ -16,14 +25,14 @@ type Tui struct {
 	ui_mainGrid    *tview.Grid
 	ui_pages       *tview.Pages
 	ui_renameModal *tview.Modal
-	leftPanel      *PanelView
-	rightPanel     *PanelView
+	leftPanel      *Panel
+	rightPanel     *Panel
 }
 
+var sel int
+
 func main() {
-	tui := &Tui{
-		leftPanel:  &PanelView{},
-		rightPanel: &PanelView{}}
+	tui := &Tui{leftPanel: &Panel{entries: []DirEntry{}}, rightPanel: &Panel{entries: []DirEntry{}}}
 
 	tui.app = tview.NewApplication()
 	tui.app.EnableMouse(true)
@@ -33,8 +42,8 @@ func main() {
 	tui.rightPanel.dirPath = user.HomeDir
 	draw(tui)
 
-	tui.updateDir(0)
-	tui.updateDir(1)
+	tui.readDir(0)
+	tui.readDir(1)
 
 	tui.app.Run()
 }
@@ -74,12 +83,27 @@ func draw(tui *Tui) {
 	tui.app.SetFocus(tui.leftPanel.ui_list)
 }
 
-func drawDir(tui *Tui, panel *PanelView, col int) {
+func drawDir(tui *Tui, panel *Panel, col int) {
 	inputField := tview.NewInputField().SetText(panel.dirPath)
 	tui.ui_mainGrid.AddItem(inputField, 0, col, 1, 1, 0, 0, false)
 	panel.ui_list = tview.
 		NewList().
 		ShowSecondaryText(false)
+	panel.ui_list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlT || event.Rune() == ' ' {
+			curr := tui.leftPanel.ui_list.GetCurrentItem()
+			tui.leftPanel.entries[curr].selected = !tui.leftPanel.entries[curr].selected
+			drawSelections(tui, tui.leftPanel)
+			tui.leftPanel.ui_list.SetCurrentItem(curr + 1)
+		} else if event.Rune() == 'j' {
+			curr := tui.leftPanel.ui_list.GetCurrentItem()
+			tui.leftPanel.ui_list.SetCurrentItem(curr + 1)
+		} else if event.Rune() == 'k' {
+			curr := tui.leftPanel.ui_list.GetCurrentItem()
+			tui.leftPanel.ui_list.SetCurrentItem(curr - 1)
+		}
+		return event
+	})
 	tui.ui_mainGrid.AddItem(panel.ui_list, 1, col, 1, 1, 0, 0, false)
 }
 
@@ -101,13 +125,27 @@ func (tui *Tui) showRenameWin() {
 	tui.ui_pages.ShowPage("rename")
 }
 
-func (tui *Tui) updateDir(dir int) {
+func drawSelections(tui *Tui, panel *Panel) {
+	for i := 0; i < len(panel.entries); i++ {
+		if panel.entries[i].selected {
+			panel.ui_list.SetItemText(i, "[red::b]"+panel.entries[i].file.Name(), "")
+		} else {
+			panel.ui_list.SetItemText(i, panel.entries[i].file.Name(), "")
+		}
+	}
+}
+
+func (tui *Tui) readDir(dir int) {
 	panel := tui.leftPanel
 	if dir == 1 {
 		panel = tui.rightPanel
 	}
+
+	panel.ui_list.Clear()
+
 	files, _ := os.ReadDir(panel.dirPath)
 	for _, e := range files {
+		panel.entries = append(panel.entries, DirEntry{file: e})
 		panel.ui_list.AddItem(e.Name(), "", 0, nil)
 	}
 }
