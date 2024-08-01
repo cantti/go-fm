@@ -1,4 +1,4 @@
-module demo
+module gofm
 
 go 1.22.5
 
