@@ -1,7 +1,6 @@
 package main
 
 import (
-	// "github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -42,7 +41,8 @@ func (m *mainView) draw() {
 			AddItem(m.dir1.element, 0, 1, false),
 		0, 1, false)
 
-	m.drawBottomToolbar()
+	toolbar := newToolbarView(m)
+	m.element.AddItem(toolbar.element, 1, 0, false)
 
 	// bottom padding
 	m.element.AddItem(tview.NewBox(), 1, 0, false)
@@ -65,30 +65,6 @@ func (m *mainView) draw() {
 	m.pages.AddPage("rename", m.renameView.element, true, false)
 
 	m.app.SetFocus(m.dir0.list)
-}
-
-func (m *mainView) drawBottomToolbar() {
-	flexCol := tview.NewFlex()
-
-	btnCopy := tview.NewButton("F5 Copy")
-
-	btnMove := tview.NewButton("F6 Move")
-
-	btnRename := tview.NewButton("Rename")
-	btnRename.SetSelectedFunc(m.showRenameWin)
-
-	btnQuit := tview.NewButton("F10 Quit")
-	btnQuit.SetSelectedFunc(func() { m.pages.ShowPage("modal") })
-
-	flexCol.AddItem(btnCopy, 0, 1, false)
-	flexCol.AddItem(tview.NewBox(), 1, 0, false)
-	flexCol.AddItem(btnMove, 0, 1, false)
-	flexCol.AddItem(tview.NewBox(), 1, 0, false)
-	flexCol.AddItem(btnRename, 0, 1, false)
-	flexCol.AddItem(tview.NewBox(), 1, 0, false)
-	flexCol.AddItem(btnQuit, 0, 1, false)
-
-	m.element.AddItem(flexCol, 1, 0, false)
 }
 
 func (tui *mainView) showRenameWin() {
