@@ -3,6 +3,7 @@ package main
 import (
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -32,7 +33,7 @@ func (m *mainView) drawDirs() {
 		dir.pathInput = tview.NewInputField().SetText(dir.dirPath)
 		dir.pathInput.SetBorder(true)
 		dir.pathInput.SetDoneFunc(func(key tcell.Key) {
-			m.readDir(dir)
+			m.readDir(dir, dir.pathInput.GetText())
 		})
 		col.AddItem(dir.pathInput, 3, 1, false)
 		dir.list = tview.
@@ -58,6 +59,8 @@ func (m *mainView) drawDirs() {
 					m.app.SetFocus(m.dir0.list)
 				}
 				return nil
+			} else if event.Key() == tcell.KeyEnter {
+				m.openDirFromList(dir)
 			}
 			return event
 		})
@@ -68,14 +71,26 @@ func (m *mainView) drawDirs() {
 	m.flexCol.AddItem(row, 0, 1, false)
 }
 
-func (tui *mainView) readDir(dir *dirView) {
+func (m *mainView) openDirFromList(dir *dirView) {
+	mainText, _ := dir.list.GetItemText(dir.list.GetCurrentItem())
+	newPath := filepath.Clean(dir.dirPath + "/" + mainText)
+	stat, _ := os.Stat(newPath)
+	if stat.IsDir() {
+		m.readDir(dir, newPath)
+		dir.pathInput.SetText(newPath)
+	}
+}
+
+func (tui *mainView) readDir(dir *dirView, path string) {
 	dir.list.Clear()
-	files, _ := os.ReadDir(dir.pathInput.GetText())
+	dir.list.SetOffset(0, 0)
+	dir.list.AddItem("..", "", 0, nil)
+	files, _ := os.ReadDir(path)
 	for _, e := range files {
 		dir.entries = append(dir.entries, dirEntry{file: e})
 		dir.list.AddItem(e.Name(), "", 0, nil)
 	}
-	dir.dirPath = dir.pathInput.GetText()
+	dir.dirPath = path
 }
 
 func drawSelections(tui *mainView, panel *dirView) {
