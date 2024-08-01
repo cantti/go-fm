@@ -9,7 +9,6 @@ type mainView struct {
 	app     *tview.Application
 	element *tview.Flex
 	pages   *tview.Pages
-	tvmodal *tview.Grid
 
 	renameView *renameView
 	dir0       *dirView
@@ -31,8 +30,8 @@ func (m *mainView) draw() {
 
 	m.element = tview.NewFlex().SetDirection(tview.FlexColumnCSS)
 
-	m.dir0 = newDir(m, 0)
-	m.dir1 = newDir(m, 1)
+	m.dir0 = newDirView(m, 0)
+	m.dir1 = newDirView(m, 1)
 	m.dir0.otherDir = m.dir1
 	m.dir1.otherDir = m.dir0
 
@@ -62,7 +61,8 @@ func (m *mainView) draw() {
 	m.pages.AddPage("main", m.element, true, true)
 	m.pages.AddPage("modal", modal, true, false)
 
-	m.drawRenameView()
+	m.renameView = newRenameView(m)
+	m.pages.AddPage("rename", m.renameView.element, true, false)
 
 	m.app.SetFocus(m.dir0.list)
 }

@@ -27,7 +27,7 @@ type dirView struct {
 	entries []dirEntry
 }
 
-func newDir(m *mainView, no int) *dirView {
+func newDirView(m *mainView, no int) *dirView {
 	col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
 	d := &dirView{entries: []dirEntry{}, main: m, no: no}
 	d.pathInput = tview.NewInputField().SetText(d.dirPath)
