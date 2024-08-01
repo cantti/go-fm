@@ -26,5 +26,5 @@ func (tui *mainView) drawRenameView() {
 		AddItem(tui.renameView.form, 1, 1, 1, 1, 0, 0, true)
 
 	tui.tvmodal = modal
-	tui.tvpages.AddPage("rename", tui.tvmodal, true, false)
+	tui.pages.AddPage("rename", tui.tvmodal, true, false)
 }

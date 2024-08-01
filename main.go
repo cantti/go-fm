@@ -7,9 +7,9 @@ import (
 func main() {
 	mainView := newMainView()
 	user, _ := user.Current()
-	mainView.dir0.dirPath = user.HomeDir
-	mainView.dir1.dirPath = user.HomeDir
+	mainView.dir0.pathInput.SetText(user.HomeDir)
+	mainView.dir1.pathInput.SetText(user.HomeDir)
 	mainView.readDir(mainView.dir0)
 	mainView.readDir(mainView.dir1)
-	mainView.tvapp.Run()
+	mainView.app.Run()
 }
