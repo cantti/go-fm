@@ -1,11 +1,12 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -29,12 +30,12 @@ type dirView struct {
 
 	no      int
 	dirPath string
-	entries []dirEntry
+	entries []*dirEntry
 }
 
 func newDirView(m *mainView, no int) *dirView {
 	col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
-	d := &dirView{entries: []dirEntry{}, main: m, no: no}
+	d := &dirView{entries: []*dirEntry{}, main: m, no: no}
 	d.pathInput = tview.NewInputField().SetText(d.dirPath)
 	d.pathInput.SetBorder(true)
 	d.pathInput.SetDoneFunc(func(key tcell.Key) {
@@ -93,7 +94,7 @@ func (d *dirView) handleOpenDirFromList() error {
 }
 
 func (d *dirView) handleCopyFileClick() error {
-	var selected []dirEntry
+	var selected []*dirEntry
 	for _, e := range d.entries {
 		if e.selected {
 			selected = append(selected, e)
@@ -122,7 +123,7 @@ func (d *dirView) readDir(path string) {
 	d.list.Clear()
 	d.list.SetOffset(0, 0)
 	d.entries = nil
-	d.entries = append(d.entries, dirEntry{name: "..", displayName: "/.."})
+	d.entries = append(d.entries, &dirEntry{name: "..", displayName: "/.."})
 	files, _ := os.ReadDir(path)
 	for _, e := range files {
 		displayName := e.Name()
@@ -131,23 +132,34 @@ func (d *dirView) readDir(path string) {
 		} else {
 			displayName = " " + displayName
 		}
-		d.entries = append(d.entries, dirEntry{
+		d.entries = append(d.entries, &dirEntry{
 			path:        filepath.Join(path, e.Name()),
 			name:        e.Name(),
 			displayName: displayName,
 			isDir:       e.IsDir()})
 	}
-	sort.SliceStable(d.entries, func(i, j int) bool {
-		return d.entries[i].displayName < d.entries[j].displayName
-	})
-	sort.SliceStable(d.entries, func(i, j int) bool {
-		return d.entries[i].displayName[0] == '.'
-	})
-	sort.SliceStable(d.entries, func(i, j int) bool {
-		return d.entries[i].displayName[0] == '/'
-	})
-	sort.SliceStable(d.entries, func(i, j int) bool {
-		return len(d.entries[i].displayName) > 1 && d.entries[i].displayName[0] == '/' && d.entries[i].displayName[1] == '.'
+	slices.SortFunc(d.entries, func(a, b *dirEntry) int {
+		return cmp.Or(
+			func() int {
+				if a.name == ".." {
+					return -1
+				} else if b.name == ".." {
+					return 1
+				} else {
+					return 0
+				}
+			}(),
+			func() int {
+				if a.isDir && !b.isDir {
+					return -1
+				} else if !a.isDir && b.isDir {
+					return 1
+				} else {
+					return 0
+				}
+			}(),
+			cmp.Compare(a.name, b.name),
+		)
 	})
 	for _, e := range d.entries {
 		d.list.AddItem(e.displayName, "", 0, nil)
