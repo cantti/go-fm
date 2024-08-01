@@ -5,15 +5,18 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type dirEntry struct {
-	path     string
-	name     string
-	selected bool
+	path        string
+	name        string
+	displayName string
+	isDir       bool
+	selected    bool
 }
 
 type dirView struct {
@@ -60,12 +63,12 @@ func newDirView(m *mainView, no int) *dirView {
 		} else if event.Key() == tcell.KeyEnter {
 			err := d.handleOpenDirFromList()
 			if err != nil {
-				log.Fatalf("key enter failed : %v", err)
+				log.Fatalf("failed to call handleOpenDirFromList : %v", err)
 			}
 		} else if event.Key() == tcell.KeyF5 {
 			err := d.handleCopyFileClick()
 			if err != nil {
-				log.Fatalf("key f5 failed : %v", err)
+				log.Fatalf("failed to call handleCopyFileClick : %v", err)
 			}
 		}
 		return event
@@ -80,7 +83,7 @@ func (d *dirView) handleOpenDirFromList() error {
 	newPath := filepath.Clean(d.dirPath + "/" + selected.name)
 	stat, err := os.Stat(newPath)
 	if err != nil {
-		return fmt.Errorf("handleOpenDirFromList failed %v", err)
+		return fmt.Errorf("failed to get file stat %v", err)
 	}
 	if stat.IsDir() {
 		d.readDir(newPath)
@@ -102,7 +105,7 @@ func (d *dirView) handleCopyFileClick() error {
 	for _, e := range selected {
 		stat, err := os.Stat(e.path)
 		if err != nil {
-			return fmt.Errorf("handleCopyFileClick failed : %v", err)
+			return fmt.Errorf("failed to get file stat : %w", err)
 		}
 		if !stat.IsDir() {
 			src := e.path
@@ -119,15 +122,35 @@ func (d *dirView) readDir(path string) {
 	d.list.Clear()
 	d.list.SetOffset(0, 0)
 	d.entries = nil
-	d.entries = append(d.entries, dirEntry{name: ".."})
+	d.entries = append(d.entries, dirEntry{name: "..", displayName: "/.."})
 	files, _ := os.ReadDir(path)
 	for _, e := range files {
+		displayName := e.Name()
+		if e.IsDir() {
+			displayName = "/" + displayName
+		} else {
+			displayName = " " + displayName
+		}
 		d.entries = append(d.entries, dirEntry{
-			path: filepath.Join(path, e.Name()),
-			name: e.Name()})
+			path:        filepath.Join(path, e.Name()),
+			name:        e.Name(),
+			displayName: displayName,
+			isDir:       e.IsDir()})
 	}
+	sort.SliceStable(d.entries, func(i, j int) bool {
+		return d.entries[i].displayName < d.entries[j].displayName
+	})
+	sort.SliceStable(d.entries, func(i, j int) bool {
+		return d.entries[i].displayName[0] == '.'
+	})
+	sort.SliceStable(d.entries, func(i, j int) bool {
+		return d.entries[i].displayName[0] == '/'
+	})
+	sort.SliceStable(d.entries, func(i, j int) bool {
+		return len(d.entries[i].displayName) > 1 && d.entries[i].displayName[0] == '/' && d.entries[i].displayName[1] == '.'
+	})
 	for _, e := range d.entries {
-		d.list.AddItem(e.name, "", 0, nil)
+		d.list.AddItem(e.displayName, "", 0, nil)
 	}
 	d.dirPath = path
 }
@@ -135,9 +158,9 @@ func (d *dirView) readDir(path string) {
 func (d *dirView) drawSelections() {
 	for i := 0; i < len(d.entries); i++ {
 		if d.entries[i].selected {
-			d.list.SetItemText(i, "[red::b]"+d.entries[i].name, "")
+			d.list.SetItemText(i, "[red::b]"+d.entries[i].displayName, "")
 		} else {
-			d.list.SetItemText(i, d.entries[i].name, "")
+			d.list.SetItemText(i, d.entries[i].displayName, "")
 		}
 	}
 }

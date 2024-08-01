@@ -70,14 +70,14 @@ func (m *mainView) draw() {
 func (m *mainView) drawBottomToolbar() {
 	flexCol := tview.NewFlex()
 
-	btnCopy := tview.NewButton("Copy")
+	btnCopy := tview.NewButton("F5 Copy")
 
-	btnMove := tview.NewButton("Move")
+	btnMove := tview.NewButton("F6 Move")
 
 	btnRename := tview.NewButton("Rename")
 	btnRename.SetSelectedFunc(m.showRenameWin)
 
-	btnQuit := tview.NewButton("Quit")
+	btnQuit := tview.NewButton("F10 Quit")
 	btnQuit.SetSelectedFunc(func() { m.pages.ShowPage("modal") })
 
 	flexCol.AddItem(btnCopy, 0, 1, false)
