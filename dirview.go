@@ -1,7 +1,8 @@
 package main
 
 import (
-	"io/fs"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -10,7 +11,8 @@ import (
 )
 
 type dirEntry struct {
-	file     fs.DirEntry
+	path     string
+	name     string
 	selected bool
 }
 
@@ -56,9 +58,15 @@ func newDirView(m *mainView, no int) *dirView {
 			m.app.SetFocus(d.otherDir.list)
 			return nil
 		} else if event.Key() == tcell.KeyEnter {
-			d.handleOpenDirFromList()
+			err := d.handleOpenDirFromList()
+			if err != nil {
+				log.Fatalf("key enter failed : %v", err)
+			}
 		} else if event.Key() == tcell.KeyF5 {
-			d.handleCopyFileClick()
+			err := d.handleCopyFileClick()
+			if err != nil {
+				log.Fatalf("key f5 failed : %v", err)
+			}
 		}
 		return event
 	})
@@ -67,33 +75,59 @@ func newDirView(m *mainView, no int) *dirView {
 	return d
 }
 
-func (d *dirView) handleOpenDirFromList() {
-	mainText, _ := d.list.GetItemText(d.list.GetCurrentItem())
-	newPath := filepath.Clean(d.dirPath + "/" + mainText)
-	stat, _ := os.Stat(newPath)
+func (d *dirView) handleOpenDirFromList() error {
+	selected := d.entries[d.list.GetCurrentItem()]
+	newPath := filepath.Clean(d.dirPath + "/" + selected.name)
+	stat, err := os.Stat(newPath)
+	if err != nil {
+		return fmt.Errorf("handleOpenDirFromList failed %v", err)
+	}
 	if stat.IsDir() {
 		d.readDir(newPath)
 		d.pathInput.SetText(newPath)
 	}
+	return nil
 }
 
-func (d *dirView) handleCopyFileClick() {
-	mainText, _ := d.list.GetItemText(d.list.GetCurrentItem())
-	src := filepath.Join(d.dirPath, mainText)
-	dest := filepath.Join(d.otherDir.dirPath, mainText)
-	fsCopy(src, dest)
+func (d *dirView) handleCopyFileClick() error {
+	var selected []dirEntry
+	for _, e := range d.entries {
+		if e.selected {
+			selected = append(selected, e)
+		}
+	}
+	if len(selected) == 0 {
+		selected = append(selected, d.entries[d.list.GetCurrentItem()])
+	}
+	for _, e := range selected {
+		stat, err := os.Stat(e.path)
+		if err != nil {
+			return fmt.Errorf("handleCopyFileClick failed : %v", err)
+		}
+		if !stat.IsDir() {
+			src := e.path
+			dest := filepath.Join(d.otherDir.dirPath, e.name)
+			fsCopy(src, dest)
+		}
+	}
 	d.readDir(d.dirPath)
 	d.otherDir.readDir(d.otherDir.dirPath)
+	return nil
 }
 
 func (d *dirView) readDir(path string) {
 	d.list.Clear()
 	d.list.SetOffset(0, 0)
-	d.list.AddItem("..", "", 0, nil)
+	d.entries = nil
+	d.entries = append(d.entries, dirEntry{name: ".."})
 	files, _ := os.ReadDir(path)
 	for _, e := range files {
-		d.entries = append(d.entries, dirEntry{file: e})
-		d.list.AddItem(e.Name(), "", 0, nil)
+		d.entries = append(d.entries, dirEntry{
+			path: filepath.Join(path, e.Name()),
+			name: e.Name()})
+	}
+	for _, e := range d.entries {
+		d.list.AddItem(e.name, "", 0, nil)
 	}
 	d.dirPath = path
 }
@@ -101,9 +135,9 @@ func (d *dirView) readDir(path string) {
 func (d *dirView) drawSelections() {
 	for i := 0; i < len(d.entries); i++ {
 		if d.entries[i].selected {
-			d.list.SetItemText(i, "[red::b]"+d.entries[i].file.Name(), "")
+			d.list.SetItemText(i, "[red::b]"+d.entries[i].name, "")
 		} else {
-			d.list.SetItemText(i, d.entries[i].file.Name(), "")
+			d.list.SetItemText(i, d.entries[i].name, "")
 		}
 	}
 }

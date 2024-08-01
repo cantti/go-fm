@@ -1,10 +1,12 @@
 package main
 
 import (
+	"log"
 	"os/user"
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	mainView := newMainView()
 	user, _ := user.Current()
 	mainView.dir0.pathInput.SetText(user.HomeDir)
