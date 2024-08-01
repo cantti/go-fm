@@ -12,6 +12,7 @@ type mainView struct {
 	renameView *renameView
 	dir0       *dirView
 	dir1       *dirView
+	toolbar    *toolbarView
 }
 
 func newMainView() *mainView {
@@ -41,8 +42,8 @@ func (m *mainView) draw() {
 			AddItem(m.dir1.element, 0, 1, false),
 		0, 1, false)
 
-	toolbar := newToolbarView(m)
-	m.element.AddItem(toolbar.element, 1, 0, false)
+	m.toolbar = newToolbarView(m)
+	m.element.AddItem(m.toolbar.element, 1, 0, false)
 
 	// bottom padding
 	m.element.AddItem(tview.NewBox(), 1, 0, false)
