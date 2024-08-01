@@ -18,8 +18,6 @@ type mainView struct {
 
 func newMainView() *mainView {
 	mainView := &mainView{
-		dir0:       &dirView{entries: []dirEntry{}},
-		dir1:       &dirView{entries: []dirEntry{}},
 		renameView: &renameView{}}
 	mainView.app = tview.NewApplication()
 	mainView.app.EnableMouse(true)

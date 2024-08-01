@@ -15,6 +15,7 @@ type dirEntry struct {
 }
 
 type dirView struct {
+	main      *mainView
 	list      *tview.List
 	pathInput *tview.InputField
 
@@ -26,32 +27,34 @@ func (m *mainView) drawDirs() {
 	row := tview.NewFlex().SetDirection(tview.FlexRowCSS)
 	for i := 0; i < 2; i++ {
 		col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
-		dir := m.dir0
-		if i == 1 {
-			dir = m.dir1
+		d := &dirView{entries: []dirEntry{}, main: m}
+		if i == 0 {
+			m.dir0 = d
+		} else {
+			m.dir1 = d
 		}
-		dir.pathInput = tview.NewInputField().SetText(dir.dirPath)
-		dir.pathInput.SetBorder(true)
-		dir.pathInput.SetDoneFunc(func(key tcell.Key) {
-			m.readDir(dir, dir.pathInput.GetText())
+		d.pathInput = tview.NewInputField().SetText(d.dirPath)
+		d.pathInput.SetBorder(true)
+		d.pathInput.SetDoneFunc(func(key tcell.Key) {
+			d.readDir(d.pathInput.GetText())
 		})
-		col.AddItem(dir.pathInput, 3, 1, false)
-		dir.list = tview.
+		col.AddItem(d.pathInput, 3, 1, false)
+		d.list = tview.
 			NewList().
 			ShowSecondaryText(false)
-		dir.list.SetBorder(true)
-		dir.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		d.list.SetBorder(true)
+		d.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 			if event.Key() == tcell.KeyCtrlT || event.Rune() == ' ' {
-				curr := dir.list.GetCurrentItem()
-				dir.entries[curr].selected = !dir.entries[curr].selected
-				drawSelections(m, dir)
-				dir.list.SetCurrentItem(curr + 1)
+				curr := d.list.GetCurrentItem()
+				d.entries[curr].selected = !d.entries[curr].selected
+				d.drawSelections()
+				d.list.SetCurrentItem(curr + 1)
 			} else if event.Rune() == 'j' {
-				curr := dir.list.GetCurrentItem()
-				dir.list.SetCurrentItem(curr + 1)
+				curr := d.list.GetCurrentItem()
+				d.list.SetCurrentItem(curr + 1)
 			} else if event.Rune() == 'k' {
-				curr := dir.list.GetCurrentItem()
-				dir.list.SetCurrentItem(curr - 1)
+				curr := d.list.GetCurrentItem()
+				d.list.SetCurrentItem(curr - 1)
 			} else if event.Key() == tcell.KeyTAB {
 				if i == 0 {
 					m.app.SetFocus(m.dir1.list)
@@ -60,45 +63,51 @@ func (m *mainView) drawDirs() {
 				}
 				return nil
 			} else if event.Key() == tcell.KeyEnter {
-				m.openDirFromList(dir)
+				d.openDirFromList()
+			} else if event.Key() == tcell.KeyF5 {
+				d.handleCopyFileClick()
 			}
 			return event
 		})
-		col.AddItem(dir.list, 0, 1, false)
+		col.AddItem(d.list, 0, 1, false)
 		row.AddItem(col, 0, 1, false)
 		row.AddItem(tview.NewBox(), 1, 0, false)
 	}
 	m.flexCol.AddItem(row, 0, 1, false)
 }
 
-func (m *mainView) openDirFromList(dir *dirView) {
-	mainText, _ := dir.list.GetItemText(dir.list.GetCurrentItem())
-	newPath := filepath.Clean(dir.dirPath + "/" + mainText)
+func (d *dirView) openDirFromList() {
+	mainText, _ := d.list.GetItemText(d.list.GetCurrentItem())
+	newPath := filepath.Clean(d.dirPath + "/" + mainText)
 	stat, _ := os.Stat(newPath)
 	if stat.IsDir() {
-		m.readDir(dir, newPath)
-		dir.pathInput.SetText(newPath)
+		d.readDir(newPath)
+		d.pathInput.SetText(newPath)
 	}
 }
 
-func (tui *mainView) readDir(dir *dirView, path string) {
-	dir.list.Clear()
-	dir.list.SetOffset(0, 0)
-	dir.list.AddItem("..", "", 0, nil)
+func (d *dirView) handleCopyFileClick() {
+
+}
+
+func (d *dirView) readDir(path string) {
+	d.list.Clear()
+	d.list.SetOffset(0, 0)
+	d.list.AddItem("..", "", 0, nil)
 	files, _ := os.ReadDir(path)
 	for _, e := range files {
-		dir.entries = append(dir.entries, dirEntry{file: e})
-		dir.list.AddItem(e.Name(), "", 0, nil)
+		d.entries = append(d.entries, dirEntry{file: e})
+		d.list.AddItem(e.Name(), "", 0, nil)
 	}
-	dir.dirPath = path
+	d.dirPath = path
 }
 
-func drawSelections(tui *mainView, panel *dirView) {
-	for i := 0; i < len(panel.entries); i++ {
-		if panel.entries[i].selected {
-			panel.list.SetItemText(i, "[red::b]"+panel.entries[i].file.Name(), "")
+func (d *dirView) drawSelections() {
+	for i := 0; i < len(d.entries); i++ {
+		if d.entries[i].selected {
+			d.list.SetItemText(i, "[red::b]"+d.entries[i].file.Name(), "")
 		} else {
-			panel.list.SetItemText(i, panel.entries[i].file.Name(), "")
+			d.list.SetItemText(i, d.entries[i].file.Name(), "")
 		}
 	}
 }
