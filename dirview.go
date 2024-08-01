@@ -128,7 +128,7 @@ func (d *dirView) readDir(path string) {
 	for _, e := range files {
 		displayName := e.Name()
 		if e.IsDir() {
-			displayName = "/" + displayName
+			displayName = "📁" + displayName
 		} else {
 			displayName = " " + displayName
 		}
