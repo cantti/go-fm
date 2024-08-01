@@ -7,7 +7,7 @@ import (
 
 type mainView struct {
 	app     *tview.Application
-	flexCol *tview.Flex
+	element *tview.Flex
 	pages   *tview.Pages
 	tvmodal *tview.Grid
 
@@ -29,13 +29,24 @@ func (m *mainView) draw() {
 	m.pages = tview.NewPages()
 	m.app.SetRoot(m.pages, true)
 
-	m.flexCol = tview.NewFlex().SetDirection(tview.FlexColumnCSS)
-	m.drawDirs()
+	m.element = tview.NewFlex().SetDirection(tview.FlexColumnCSS)
+
+	m.dir0 = newDir(m, 0)
+	m.dir1 = newDir(m, 1)
+	m.dir0.otherDir = m.dir1
+	m.dir1.otherDir = m.dir0
+
+	m.element.AddItem(
+		tview.NewFlex().
+			SetDirection(tview.FlexRowCSS).
+			AddItem(m.dir0.element, 0, 1, false).
+			AddItem(m.dir1.element, 0, 1, false),
+		0, 1, false)
 
 	m.drawBottomToolbar()
 
 	// bottom padding
-	m.flexCol.AddItem(tview.NewBox(), 1, 0, false)
+	m.element.AddItem(tview.NewBox(), 1, 0, false)
 
 	modal := tview.NewModal().
 		SetText("Do you want to quit the application?").
@@ -48,7 +59,7 @@ func (m *mainView) draw() {
 			}
 		})
 
-	m.pages.AddPage("main", m.flexCol, true, true)
+	m.pages.AddPage("main", m.element, true, true)
 	m.pages.AddPage("modal", modal, true, false)
 
 	m.drawRenameView()
@@ -77,7 +88,7 @@ func (m *mainView) drawBottomToolbar() {
 	flexCol.AddItem(tview.NewBox(), 1, 0, false)
 	flexCol.AddItem(btnQuit, 0, 1, false)
 
-	m.flexCol.AddItem(flexCol, 1, 0, false)
+	m.element.AddItem(flexCol, 1, 0, false)
 }
 
 func (tui *mainView) showRenameWin() {

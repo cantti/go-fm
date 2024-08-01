@@ -15,68 +15,59 @@ type dirEntry struct {
 }
 
 type dirView struct {
-	main      *mainView
+	main     *mainView
+	otherDir *dirView
+
+	element   *tview.Flex
 	list      *tview.List
 	pathInput *tview.InputField
 
+	no      int
 	dirPath string
 	entries []dirEntry
 }
 
-func (m *mainView) drawDirs() {
-	row := tview.NewFlex().SetDirection(tview.FlexRowCSS)
-	for i := 0; i < 2; i++ {
-		col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
-		d := &dirView{entries: []dirEntry{}, main: m}
-		if i == 0 {
-			m.dir0 = d
-		} else {
-			m.dir1 = d
+func newDir(m *mainView, no int) *dirView {
+	col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
+	d := &dirView{entries: []dirEntry{}, main: m, no: no}
+	d.pathInput = tview.NewInputField().SetText(d.dirPath)
+	d.pathInput.SetBorder(true)
+	d.pathInput.SetDoneFunc(func(key tcell.Key) {
+		d.readDir(d.pathInput.GetText())
+	})
+	col.AddItem(d.pathInput, 3, 1, false)
+	d.list = tview.
+		NewList().
+		ShowSecondaryText(false)
+	d.list.SetBorder(true)
+	d.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlT || event.Rune() == ' ' {
+			curr := d.list.GetCurrentItem()
+			d.entries[curr].selected = !d.entries[curr].selected
+			d.drawSelections()
+			d.list.SetCurrentItem(curr + 1)
+		} else if event.Rune() == 'j' {
+			curr := d.list.GetCurrentItem()
+			d.list.SetCurrentItem(curr + 1)
+		} else if event.Rune() == 'k' {
+			curr := d.list.GetCurrentItem()
+			d.list.SetCurrentItem(curr - 1)
+		} else if event.Key() == tcell.KeyTAB {
+			m.app.SetFocus(d.otherDir.list)
+			return nil
+		} else if event.Key() == tcell.KeyEnter {
+			d.handleOpenDirFromList()
+		} else if event.Key() == tcell.KeyF5 {
+			d.handleCopyFileClick()
 		}
-		d.pathInput = tview.NewInputField().SetText(d.dirPath)
-		d.pathInput.SetBorder(true)
-		d.pathInput.SetDoneFunc(func(key tcell.Key) {
-			d.readDir(d.pathInput.GetText())
-		})
-		col.AddItem(d.pathInput, 3, 1, false)
-		d.list = tview.
-			NewList().
-			ShowSecondaryText(false)
-		d.list.SetBorder(true)
-		d.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Key() == tcell.KeyCtrlT || event.Rune() == ' ' {
-				curr := d.list.GetCurrentItem()
-				d.entries[curr].selected = !d.entries[curr].selected
-				d.drawSelections()
-				d.list.SetCurrentItem(curr + 1)
-			} else if event.Rune() == 'j' {
-				curr := d.list.GetCurrentItem()
-				d.list.SetCurrentItem(curr + 1)
-			} else if event.Rune() == 'k' {
-				curr := d.list.GetCurrentItem()
-				d.list.SetCurrentItem(curr - 1)
-			} else if event.Key() == tcell.KeyTAB {
-				if i == 0 {
-					m.app.SetFocus(m.dir1.list)
-				} else {
-					m.app.SetFocus(m.dir0.list)
-				}
-				return nil
-			} else if event.Key() == tcell.KeyEnter {
-				d.openDirFromList()
-			} else if event.Key() == tcell.KeyF5 {
-				d.handleCopyFileClick()
-			}
-			return event
-		})
-		col.AddItem(d.list, 0, 1, false)
-		row.AddItem(col, 0, 1, false)
-		row.AddItem(tview.NewBox(), 1, 0, false)
-	}
-	m.flexCol.AddItem(row, 0, 1, false)
+		return event
+	})
+	col.AddItem(d.list, 0, 1, false)
+	d.element = col
+	return d
 }
 
-func (d *dirView) openDirFromList() {
+func (d *dirView) handleOpenDirFromList() {
 	mainText, _ := d.list.GetItemText(d.list.GetCurrentItem())
 	newPath := filepath.Clean(d.dirPath + "/" + mainText)
 	stat, _ := os.Stat(newPath)
@@ -87,7 +78,12 @@ func (d *dirView) openDirFromList() {
 }
 
 func (d *dirView) handleCopyFileClick() {
-
+	mainText, _ := d.list.GetItemText(d.list.GetCurrentItem())
+	src := filepath.Join(d.dirPath, mainText)
+	dest := filepath.Join(d.otherDir.dirPath, mainText)
+	fsCopy(src, dest)
+	d.readDir(d.dirPath)
+	d.otherDir.readDir(d.otherDir.dirPath)
 }
 
 func (d *dirView) readDir(path string) {
