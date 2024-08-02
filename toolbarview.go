@@ -23,21 +23,19 @@ func newToolbarView(m *mainView) *toolbarView {
 	flex.AddItem(btnCopy, 0, 1, false)
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
-	btnMove := tview.NewButton(t.fmtBtn("F6", "Move"))
+	btnMove := tview.NewButton(t.fmtBtn("F6", "Move (not implemented)"))
 	flex.AddItem(btnMove, 0, 1, false)
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
-	btnRename := tview.NewButton(t.fmtBtn("Shift-F6", "Rename"))
+	btnRename := tview.NewButton(t.fmtBtn("Shift-F6", "Rename (not implemented)"))
 	btnRename.SetSelectedFunc(m.showRenameWin)
 	flex.AddItem(btnRename, 0, 1, false)
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
 	btnQuit := tview.NewButton(t.fmtBtn("F10", "Quit"))
-	btnQuit.SetSelectedFunc(func() { m.pages.ShowPage("modal") })
-
-	flex.AddItem(btnRename, 0, 1, false)
-	flex.AddItem(tview.NewBox(), 1, 0, false)
+	btnQuit.SetSelectedFunc(m.showQuit)
 	flex.AddItem(btnQuit, 0, 1, false)
+	flex.AddItem(tview.NewBox(), 1, 0, false)
 
 	t.element = flex
 

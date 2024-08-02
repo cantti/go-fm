@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -12,6 +13,7 @@ type mainView struct {
 	element   *tview.Flex
 	pages     *tview.Pages
 	statusBar *tview.TextView
+	quitView  *tview.Modal
 
 	renameView   *renameView
 	dir0         *dirView
@@ -36,6 +38,13 @@ func (m *mainView) draw() {
 
 	m.element = tview.NewFlex().SetDirection(tview.FlexColumnCSS)
 
+	m.element.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyF10 {
+			m.showQuit()
+		}
+		return event
+	})
+
 	m.dir0 = newDirView(m, 0)
 	m.dir1 = newDirView(m, 1)
 	m.dir0.otherDir = m.dir1
@@ -50,25 +59,14 @@ func (m *mainView) draw() {
 
 	m.toolbar = newToolbarView(m)
 	m.element.AddItem(m.toolbar.element, 1, 0, false)
+	m.pages.AddPage("main", m.element, true, true)
 
-	drawStatusBar(m)
+	m.drawStatusBar()
 
 	// bottom padding
 	m.element.AddItem(tview.NewBox(), 1, 0, false)
 
-	quitModal := tview.NewModal().
-		SetText("Do you want to quit the application?").
-		AddButtons([]string{"Quit", "Cancel"}).
-		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-			if buttonLabel == "Quit" {
-				m.app.Stop()
-			} else {
-				m.pages.HidePage("modal")
-			}
-		})
-
-	m.pages.AddPage("main", m.element, true, true)
-	m.pages.AddPage("modal", quitModal, true, false)
+	m.drawQuit()
 
 	m.renameView = newRenameView(m)
 	m.pages.AddPage("rename", m.renameView.element, true, false)
@@ -79,11 +77,25 @@ func (m *mainView) draw() {
 	m.app.SetFocus(m.dir0.list)
 }
 
-func drawStatusBar(m *mainView) {
+func (m *mainView) drawStatusBar() {
 	m.statusBar = tview.NewTextView()
 	m.element.AddItem(m.statusBar, 1, 0, false)
 	m.statusBar.SetDynamicColors(true)
 	m.setStatus("")
+}
+
+func (m *mainView) drawQuit() {
+	m.quitView = tview.NewModal().
+		SetText("Do you want to quit the application?").
+		AddButtons([]string{"Quit", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Quit" {
+				m.app.Stop()
+			} else {
+				m.pages.HidePage("quit")
+			}
+		})
+	m.pages.AddPage("quit", m.quitView, true, false)
 }
 
 func (tui *mainView) showRenameWin() {
@@ -99,6 +111,14 @@ func (m *mainView) showExists(file string) {
 func (m *mainView) hideExists() {
 	m.existsViewWg.Done()
 	m.pages.HidePage("exists")
+}
+
+func (m *mainView) showQuit() {
+	m.pages.ShowPage("quit")
+}
+
+func (m *mainView) hideQuit() {
+	m.pages.HidePage("quit")
 }
 
 func (m *mainView) setStatus(text string) {
