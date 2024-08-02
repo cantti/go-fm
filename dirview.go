@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"fmt"
+	"gofm/fsutils"
 	"log"
 	"os"
 	"path/filepath"
@@ -104,15 +105,9 @@ func (d *dirView) handleCopyFileClick() error {
 		selected = append(selected, d.entries[d.list.GetCurrentItem()])
 	}
 	for _, e := range selected {
-		stat, err := os.Stat(e.path)
-		if err != nil {
-			return fmt.Errorf("failed to get file stat : %w", err)
-		}
-		if !stat.IsDir() {
-			src := e.path
-			dest := filepath.Join(d.otherDir.dirPath, e.name)
-			fsCopy(src, dest)
-		}
+		src := e.path
+		dst := filepath.Join(d.otherDir.dirPath, e.name)
+		fsutils.Copy(src, dst)
 	}
 	d.readDir(d.dirPath)
 	d.otherDir.readDir(d.otherDir.dirPath)
@@ -141,9 +136,9 @@ func (d *dirView) readDir(path string) {
 	slices.SortFunc(d.entries, func(a, b *dirEntry) int {
 		return cmp.Or(
 			func() int {
-				if a.name == ".." {
+				if a.name == ".." && b.name != ".." {
 					return -1
-				} else if b.name == ".." {
+				} else if a.name != ".." && b.name == ".." {
 					return 1
 				} else {
 					return 0
