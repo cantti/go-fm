@@ -107,7 +107,11 @@ func (d *dirView) handleCopyFileClick() error {
 	for _, e := range selected {
 		src := e.path
 		dst := filepath.Join(d.otherDir.dirPath, e.name)
-		fsutils.Copy(src, dst)
+		total, err := fsutils.Copy(src, dst)
+		if err != nil {
+			return fmt.Errorf("copy failed : %w", err)
+		}
+		d.main.setStatus(fmt.Sprintf("copy completed, %v entries created", total))
 	}
 	d.readDir(d.dirPath)
 	d.otherDir.readDir(d.otherDir.dirPath)

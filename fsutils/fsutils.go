@@ -7,20 +7,23 @@ import (
 	"path/filepath"
 )
 
-func Copy(src, dst string) error {
+func Copy(src, dst string) (total int, error error) {
 	stat, err := os.Stat(src)
 	if err != nil {
-		return fmt.Errorf("failed to get stat : %w", err)
+		return 0, fmt.Errorf("failed to get stat : %w", err)
 	}
 	if stat.IsDir() {
-		os.Mkdir(dst, os.ModePerm)
 		entries, _ := readDirRecursively(src, dst, "/")
 		for _, e := range entries {
-			stat, err := os.Stat(e.src)
+			srcStat, err := os.Stat(e.src)
 			if err != nil {
-				return fmt.Errorf("failed to get stat : %w", err)
+				return 0, fmt.Errorf("failed to get stat : %w", err)
 			}
-			if stat.IsDir() {
+			_, dstStatErr := os.Stat(e.dst)
+			if dstStatErr == nil {
+				return 0, fmt.Errorf("file already exists : %w", err)
+			}
+			if srcStat.IsDir() {
 				// dir needs to be writable
 				os.Mkdir(e.dst, os.ModePerm)
 			} else {
@@ -30,7 +33,7 @@ func Copy(src, dst string) error {
 			for _, e := range entries {
 				stat, err := os.Stat(e.src)
 				if err != nil {
-					return fmt.Errorf("failed to get stat : %w", err)
+					return 0, fmt.Errorf("failed to get stat : %w", err)
 				}
 				if stat.IsDir() {
 					os.Chmod(e.dst, stat.Mode().Perm())
@@ -39,10 +42,11 @@ func Copy(src, dst string) error {
 				}
 			}
 		}
+		return len(entries), nil
 	} else {
 		copyFile(src, dst)
+		return 1, nil
 	}
-	return nil
 }
 
 func copyFile(src, dst string) (int64, error) {
@@ -82,14 +86,20 @@ type entry struct {
 func readDirRecursively(srcBase string, dstBase string, relativePath string) ([]entry, error) {
 	var result []entry
 	entries, _ := os.ReadDir(filepath.Join(srcBase, relativePath))
+	result = append(result, entry{
+		src:      filepath.Join(srcBase, relativePath),
+		dst:      filepath.Join(dstBase, relativePath),
+		relative: relativePath})
 	for _, e := range entries {
-		result = append(result, entry{
-			src:      filepath.Join(srcBase, relativePath, e.Name()),
-			dst:      filepath.Join(dstBase, relativePath, e.Name()),
-			relative: relativePath})
 		if e.IsDir() {
 			children, _ := readDirRecursively(srcBase, dstBase, filepath.Join(relativePath, e.Name()))
 			result = append(result, children...)
+		} else {
+
+			result = append(result, entry{
+				src:      filepath.Join(srcBase, relativePath, e.Name()),
+				dst:      filepath.Join(dstBase, relativePath, e.Name()),
+				relative: relativePath})
 		}
 	}
 	return result, nil

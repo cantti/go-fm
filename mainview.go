@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/rivo/tview"
 )
 
 type mainView struct {
-	app     *tview.Application
-	element *tview.Flex
-	pages   *tview.Pages
+	app       *tview.Application
+	element   *tview.Flex
+	pages     *tview.Pages
+	statusBar *tview.TextView
 
 	renameView *renameView
 	dir0       *dirView
@@ -43,7 +46,8 @@ func (m *mainView) draw() {
 		0, 1, false)
 
 	m.toolbar = newToolbarView(m)
-	m.element.AddItem(m.toolbar.element, 1, 0, false)
+
+	drawStatusBar(m)
 
 	// bottom padding
 	m.element.AddItem(tview.NewBox(), 1, 0, false)
@@ -68,13 +72,18 @@ func (m *mainView) draw() {
 	m.app.SetFocus(m.dir0.list)
 }
 
+func drawStatusBar(m *mainView) {
+	m.statusBar = tview.NewTextView()
+	m.element.AddItem(m.statusBar, 1, 0, false)
+	m.statusBar.SetDynamicColors(true)
+	m.setStatus("")
+}
+
 func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
 }
 
-func modal(p tview.Primitive, width, height int) tview.Primitive {
-	return tview.NewGrid().
-		SetColumns(0, width, 0).
-		SetRows(0, height, 0).
-		AddItem(p, 1, 1, 1, 1, 0, 0, true)
+func (m *mainView) setStatus(text string) {
+	m.statusBar.Clear()
+	fmt.Fprintf(m.statusBar, "[orange:]%s[-:-] %s", "Status:", text)
 }
