@@ -7,12 +7,32 @@ import (
 	"path/filepath"
 )
 
-func Copy(src, dst string) (total int, error error) {
-	stat, err := os.Stat(src)
+type DstExistsAction int
+
+const (
+	DstExistsActionOverWrite DstExistsAction = iota
+	DstExistsActionSkip
+)
+
+func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error error) {
+	srcStat, err := os.Stat(src)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get stat : %w", err)
 	}
-	if stat.IsDir() {
+	_, err = os.Stat(dst)
+	if err == nil {
+		if onDstExists != nil {
+			action := onDstExists()
+			if action == DstExistsActionOverWrite {
+				os.RemoveAll(dst)
+			} else {
+				return 0, nil
+			}
+		} else {
+			return 0, nil
+		}
+	}
+	if srcStat.IsDir() {
 		entries, _ := readDirRecursively(src, dst, "/")
 		for _, e := range entries {
 			srcStat, err := os.Stat(e.src)

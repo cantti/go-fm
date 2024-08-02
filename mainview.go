@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/rivo/tview"
 )
@@ -12,10 +13,12 @@ type mainView struct {
 	pages     *tview.Pages
 	statusBar *tview.TextView
 
-	renameView *renameView
-	dir0       *dirView
-	dir1       *dirView
-	toolbar    *toolbarView
+	renameView   *renameView
+	dir0         *dirView
+	dir1         *dirView
+	toolbar      *toolbarView
+	existsView   *existsView
+	existsViewWg sync.WaitGroup
 }
 
 func newMainView() *mainView {
@@ -46,13 +49,14 @@ func (m *mainView) draw() {
 		0, 1, false)
 
 	m.toolbar = newToolbarView(m)
+	m.element.AddItem(m.toolbar.element, 1, 0, false)
 
 	drawStatusBar(m)
 
 	// bottom padding
 	m.element.AddItem(tview.NewBox(), 1, 0, false)
 
-	modal := tview.NewModal().
+	quitModal := tview.NewModal().
 		SetText("Do you want to quit the application?").
 		AddButtons([]string{"Quit", "Cancel"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
@@ -64,10 +68,13 @@ func (m *mainView) draw() {
 		})
 
 	m.pages.AddPage("main", m.element, true, true)
-	m.pages.AddPage("modal", modal, true, false)
+	m.pages.AddPage("modal", quitModal, true, false)
 
 	m.renameView = newRenameView(m)
 	m.pages.AddPage("rename", m.renameView.element, true, false)
+
+	m.existsView = newExistsView(m)
+	m.pages.AddPage("exists", m.existsView.element, true, false)
 
 	m.app.SetFocus(m.dir0.list)
 }
@@ -81,6 +88,17 @@ func drawStatusBar(m *mainView) {
 
 func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
+}
+
+func (m *mainView) showExists(file string) {
+	m.existsViewWg.Add(1)
+	m.existsView.SetData(file)
+	m.pages.ShowPage("exists")
+}
+
+func (m *mainView) hideExists() {
+	m.existsViewWg.Done()
+	m.pages.HidePage("exists")
 }
 
 func (m *mainView) setStatus(text string) {

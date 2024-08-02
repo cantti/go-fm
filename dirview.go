@@ -68,10 +68,7 @@ func newDirView(m *mainView, no int) *dirView {
 				log.Fatalf("failed to call handleOpenDirFromList : %v", err)
 			}
 		} else if event.Key() == tcell.KeyF5 {
-			err := d.handleCopyFileClick()
-			if err != nil {
-				log.Fatalf("failed to call handleCopyFileClick : %v", err)
-			}
+			go d.handleCopyFileClick()
 		}
 		return event
 	})
@@ -94,7 +91,7 @@ func (d *dirView) handleOpenDirFromList() error {
 	return nil
 }
 
-func (d *dirView) handleCopyFileClick() error {
+func (d *dirView) handleCopyFileClick() {
 	var selected []*dirEntry
 	for _, e := range d.entries {
 		if e.selected {
@@ -107,15 +104,21 @@ func (d *dirView) handleCopyFileClick() error {
 	for _, e := range selected {
 		src := e.path
 		dst := filepath.Join(d.otherDir.dirPath, e.name)
-		total, err := fsutils.Copy(src, dst)
-		if err != nil {
-			return fmt.Errorf("copy failed : %w", err)
+		if src == dst {
+			d.main.setStatus("Copy failed. Source and destination are the same!")
+			return
 		}
-		d.main.setStatus(fmt.Sprintf("copy completed, %v entries created", total))
+		total, err := fsutils.Copy(src, dst, func() fsutils.DstExistsAction {
+			d.main.showExists(dst)
+			d.main.existsViewWg.Wait()
+			return d.main.existsView.action
+		})
+		if err != nil {
+			d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
+		}
+		d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", total))
 	}
-	d.readDir(d.dirPath)
 	d.otherDir.readDir(d.otherDir.dirPath)
-	return nil
 }
 
 func (d *dirView) readDir(path string) {
