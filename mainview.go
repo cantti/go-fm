@@ -15,12 +15,15 @@ type mainView struct {
 	statusBar *tview.TextView
 	quitView  *tview.Modal
 
-	renameView   *renameView
-	dir0         *dirView
-	dir1         *dirView
-	toolbar      *toolbarView
-	existsView   *existsView
-	existsViewWg sync.WaitGroup
+	modalWg sync.WaitGroup
+
+	renameView        *renameView
+	dir0              *dirView
+	dir1              *dirView
+	lastFocusedDir    *dirView
+	toolbar           *toolbarView
+	existsView        *existsView
+	confirmDeleteView *confirmDeleteView
 }
 
 func newMainView() *mainView {
@@ -74,6 +77,9 @@ func (m *mainView) draw() {
 	m.existsView = newExistsView(m)
 	m.pages.AddPage("exists", m.existsView.element, true, false)
 
+	m.confirmDeleteView = newConfirmDeleteView(m)
+	m.pages.AddPage("confirmDelete", m.confirmDeleteView.element, true, false)
+
 	m.app.SetFocus(m.dir0.list)
 }
 
@@ -103,14 +109,15 @@ func (tui *mainView) showRenameWin() {
 }
 
 func (m *mainView) showExists(file string) {
-	m.existsViewWg.Add(1)
+	m.modalWg.Add(1)
 	m.existsView.SetData(file)
 	m.pages.ShowPage("exists")
 }
 
 func (m *mainView) hideExists() {
-	m.existsViewWg.Done()
+	m.modalWg.Done()
 	m.pages.HidePage("exists")
+	m.app.SetFocus(m.lastFocusedDir.list)
 }
 
 func (m *mainView) showQuit() {
@@ -119,6 +126,19 @@ func (m *mainView) showQuit() {
 
 func (m *mainView) hideQuit() {
 	m.pages.HidePage("quit")
+	m.app.SetFocus(m.lastFocusedDir.list)
+}
+
+func (m *mainView) showConfirmDelete(files []string) {
+	m.modalWg.Add(1)
+	m.confirmDeleteView.SetData(files)
+	m.pages.ShowPage("confirmDelete")
+}
+
+func (m *mainView) hideConfirmDelete() {
+	m.modalWg.Done()
+	m.pages.HidePage("confirmDelete")
+	m.app.SetFocus(m.lastFocusedDir.list)
 }
 
 func (m *mainView) setStatus(text string) {

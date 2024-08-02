@@ -20,6 +20,14 @@ func newToolbarView(m *mainView) *toolbarView {
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
 	btnCopy := tview.NewButton(t.fmtBtn("F5", "Copy"))
+	btnCopy.SetSelectedFunc(func() {
+		f := t.main.lastFocusedDir
+		if f == nil {
+			t.main.setStatus("Please focus source dir")
+		} else {
+			f.handleCopyClick()
+		}
+	})
 	flex.AddItem(btnCopy, 0, 1, false)
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
@@ -30,6 +38,10 @@ func newToolbarView(m *mainView) *toolbarView {
 	btnRename := tview.NewButton(t.fmtBtn("Shift-F6", "Rename (not implemented)"))
 	btnRename.SetSelectedFunc(m.showRenameWin)
 	flex.AddItem(btnRename, 0, 1, false)
+	flex.AddItem(tview.NewBox(), 1, 0, false)
+
+	btnDelete := tview.NewButton(t.fmtBtn("F8", "Delete"))
+	flex.AddItem(btnDelete, 0, 1, false)
 	flex.AddItem(tview.NewBox(), 1, 0, false)
 
 	btnQuit := tview.NewButton(t.fmtBtn("F10", "Quit"))

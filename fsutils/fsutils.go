@@ -14,10 +14,10 @@ const (
 	DstExistsActionSkip
 )
 
-func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error error) {
+func Copy(src, dst string, onDstExists func() DstExistsAction) error {
 	srcStat, err := os.Stat(src)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get stat : %w", err)
+		return fmt.Errorf("failed to get stat : %w", err)
 	}
 	_, err = os.Stat(dst)
 	if err == nil {
@@ -26,10 +26,10 @@ func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error
 			if action == DstExistsActionOverWrite {
 				os.RemoveAll(dst)
 			} else {
-				return 0, nil
+				return nil
 			}
 		} else {
-			return 0, nil
+			return nil
 		}
 	}
 	if srcStat.IsDir() {
@@ -37,11 +37,11 @@ func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error
 		for _, e := range entries {
 			srcStat, err := os.Stat(e.src)
 			if err != nil {
-				return 0, fmt.Errorf("failed to get stat : %w", err)
+				return fmt.Errorf("failed to get stat : %w", err)
 			}
 			_, dstStatErr := os.Stat(e.dst)
 			if dstStatErr == nil {
-				return 0, fmt.Errorf("file already exists : %w", err)
+				return fmt.Errorf("file already exists : %w", err)
 			}
 			if srcStat.IsDir() {
 				// dir needs to be writable
@@ -53,7 +53,7 @@ func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error
 			for _, e := range entries {
 				stat, err := os.Stat(e.src)
 				if err != nil {
-					return 0, fmt.Errorf("failed to get stat : %w", err)
+					return fmt.Errorf("failed to get stat : %w", err)
 				}
 				if stat.IsDir() {
 					os.Chmod(e.dst, stat.Mode().Perm())
@@ -62,10 +62,10 @@ func Copy(src, dst string, onDstExists func() DstExistsAction) (total int, error
 				}
 			}
 		}
-		return len(entries), nil
+		return nil
 	} else {
 		copyFile(src, dst)
-		return 1, nil
+		return nil
 	}
 }
 
