@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"fmt"
 	"gofm/fsutils"
-	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -48,27 +47,29 @@ func newDirView(m *mainView, no int) *dirView {
 		ShowSecondaryText(false)
 	d.list.SetBorder(true)
 	d.list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+
 		if event.Key() == tcell.KeyCtrlT || event.Rune() == ' ' {
 			curr := d.list.GetCurrentItem()
 			d.entries[curr].selected = !d.entries[curr].selected
 			d.drawSelections()
 			d.list.SetCurrentItem(curr + 1)
+			return nil
+
 		} else if event.Rune() == 'j' {
 			curr := d.list.GetCurrentItem()
 			d.list.SetCurrentItem(curr + 1)
+
 		} else if event.Rune() == 'k' {
 			curr := d.list.GetCurrentItem()
 			d.list.SetCurrentItem(curr - 1)
+
 		} else if event.Key() == tcell.KeyTAB {
 			m.app.SetFocus(d.otherDir.list)
 			return nil
-		} else if event.Key() == tcell.KeyEnter {
-			err := d.handleOpenDirFromList()
-			if err != nil {
-				log.Fatalf("failed to call handleOpenDirFromList : %v", err)
-			}
+
 		} else if event.Key() == tcell.KeyF5 {
 			d.handleCopyClick()
+
 		} else if event.Key() == tcell.KeyF8 {
 			d.handleDeleteClick()
 		}
@@ -77,13 +78,19 @@ func newDirView(m *mainView, no int) *dirView {
 	d.list.SetFocusFunc(func() {
 		d.main.lastFocusedDir = d
 	})
+	d.list.SetSelectedFunc(func(index int, main string, second string, rune rune) {
+		err := d.handleOpenDirFromList(index)
+		if err != nil {
+			d.main.setStatus(fmt.Sprintf("failed to call handleOpenDirFromList : %v", err))
+		}
+	})
 	col.AddItem(d.list, 0, 1, false)
 	d.element = col
 	return d
 }
 
-func (d *dirView) handleOpenDirFromList() error {
-	selected := d.entries[d.list.GetCurrentItem()]
+func (d *dirView) handleOpenDirFromList(index int) error {
+	selected := d.entries[index]
 	newPath := filepath.Clean(d.dirPath + "/" + selected.name)
 	stat, err := os.Stat(newPath)
 	if err != nil {
@@ -101,7 +108,7 @@ func (d *dirView) handleCopyClick() {
 	d.copyFrom(selected, 0, nil, 0)
 }
 
-func (d *dirView) copyFrom(selected []dirEntry, start int, act *fsutils.DstExistsAction, total int) {
+func (d *dirView) copyFrom(selected []dirEntry, start int, act *DstExistsAction, total int) {
 	for i := start; i < len(selected); i++ {
 		e := selected[i]
 		if e.name == ".." {
@@ -117,13 +124,13 @@ func (d *dirView) copyFrom(selected []dirEntry, start int, act *fsutils.DstExist
 		if fsutils.Exists(dst) {
 			// action was not selected for current fil
 			if act == nil {
-				d.main.showExists(dst, func(a fsutils.DstExistsAction) {
+				d.main.showExists(dst, func(a DstExistsAction) {
 					d.copyFrom(selected, i, &a, total)
 				})
 				return
 			} else {
 				// if skip continue, if not copy to override
-				if *act == fsutils.DstExistsActionSkip {
+				if *act == DstExistsActionSkip {
 					act = nil
 					continue
 				}

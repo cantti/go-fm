@@ -7,13 +7,6 @@ import (
 	"path/filepath"
 )
 
-type DstExistsAction int
-
-const (
-	DstExistsActionOverWrite DstExistsAction = iota
-	DstExistsActionSkip
-)
-
 func Copy(src, dst string) error {
 	srcStat, err := os.Stat(src)
 	if err != nil {

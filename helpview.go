@@ -5,7 +5,8 @@ import (
 )
 
 func newHelpView(done func()) *tview.Modal {
-	text := "Ctrl-T - select file"
+	text := "Ctrl-T, Space - select file\n" +
+		"Enter - open dir"
 	return tview.NewModal().
 		AddButtons([]string{"Close"}).
 		SetText(text).

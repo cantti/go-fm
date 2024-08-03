@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"gofm/fsutils"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -101,8 +100,8 @@ func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
 }
 
-func (m *mainView) showExists(file string, done func(a fsutils.DstExistsAction)) {
-	modal := newExistsView(file, func(a fsutils.DstExistsAction) {
+func (m *mainView) showExists(file string, done func(a DstExistsAction)) {
+	modal := newExistsView(file, func(a DstExistsAction) {
 		m.pages.RemovePage("exists")
 		m.app.SetFocus(m.lastFocusedDir.list)
 		done(a)
