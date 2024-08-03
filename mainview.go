@@ -39,6 +39,9 @@ func (m *mainView) draw() {
 	m.element = tview.NewFlex().SetDirection(tview.FlexColumnCSS)
 
 	m.element.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyF1 {
+			m.showHelp()
+		}
 		if event.Key() == tcell.KeyF10 {
 			m.showQuit()
 		}
@@ -121,6 +124,13 @@ func (m *mainView) showQuit() {
 func (m *mainView) hideQuit() {
 	m.pages.HidePage("quit")
 	m.app.SetFocus(m.lastFocusedDir.list)
+}
+
+func (m *mainView) showHelp() {
+	modal := newHelpView(func() {
+		m.pages.RemovePage("help")
+	})
+	m.pages.AddPage("help", modal, false, true)
 }
 
 func (m *mainView) showConfirmDelete(files []string) ConfirmDeleteAction {
