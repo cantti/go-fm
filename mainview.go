@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"gofm/fsutils"
 	"sync"
 
 	"github.com/gdamore/tcell/v2"
@@ -15,13 +16,11 @@ type mainView struct {
 	statusBar *tview.TextView
 	quitView  *tview.Modal
 
-	renameView        *renameView
-	dir0              *dirView
-	dir1              *dirView
-	lastFocusedDir    *dirView
-	toolbar           *toolbarView
-	existsView        *existsView
-	confirmDeleteView *confirmDeleteView
+	renameView     *renameView
+	dir0           *dirView
+	dir1           *dirView
+	lastFocusedDir *dirView
+	toolbar        *toolbarView
 }
 
 func newMainView() *mainView {
@@ -72,12 +71,6 @@ func (m *mainView) draw() {
 	m.renameView = newRenameView(m)
 	m.pages.AddPage("rename", m.renameView.element, true, false)
 
-	m.existsView = newExistsView(m)
-	m.pages.AddPage("exists", m.existsView.element, true, false)
-
-	m.confirmDeleteView = newConfirmDeleteView(m)
-	m.pages.AddPage("confirmDelete", m.confirmDeleteView.element, true, false)
-
 	m.app.SetFocus(m.dir0.list)
 }
 
@@ -106,15 +99,19 @@ func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
 }
 
-func (m *mainView) showExists(file string, wg *sync.WaitGroup) {
-	m.existsView.SetData(file).SetWg(wg)
+func (m *mainView) showExists(file string) fsutils.DstExistsAction {
+	wg := new(sync.WaitGroup)
 	wg.Add(1)
-	m.pages.ShowPage("exists")
-	go func() {
-		wg.Wait()
-		m.pages.HidePage("exists")
-		m.app.SetFocus(m.lastFocusedDir.list)
-	}()
+	var action fsutils.DstExistsAction
+	modal := newExistsView(file, func(a fsutils.DstExistsAction) {
+		action = a
+		wg.Done()
+	})
+	m.pages.AddPage("exists", modal, false, true)
+	wg.Wait()
+	m.pages.HidePage("exists")
+	m.app.SetFocus(m.lastFocusedDir.list)
+	return action
 }
 
 func (m *mainView) showQuit() {
@@ -126,15 +123,19 @@ func (m *mainView) hideQuit() {
 	m.app.SetFocus(m.lastFocusedDir.list)
 }
 
-func (m *mainView) showConfirmDelete(files []string, wg *sync.WaitGroup) {
-	m.confirmDeleteView.SetData(files, wg)
+func (m *mainView) showConfirmDelete(files []string) ConfirmDeleteAction {
+	wg := new(sync.WaitGroup)
 	wg.Add(1)
-	m.pages.ShowPage("confirmDelete")
-	go func() {
-		wg.Wait()
-		m.pages.HidePage("confirmDelete")
-		m.app.SetFocus(m.lastFocusedDir.list)
-	}()
+	var action ConfirmDeleteAction
+	modal := newConfirmDeleteView(files, func(a ConfirmDeleteAction) {
+		action = a
+		wg.Done()
+	})
+	m.pages.AddPage("confirmDelete", modal, false, true)
+	wg.Wait()
+	m.pages.HidePage("confirmDelete")
+	m.app.SetFocus(m.lastFocusedDir.list)
+	return action
 }
 
 func (m *mainView) setStatus(text string) {
