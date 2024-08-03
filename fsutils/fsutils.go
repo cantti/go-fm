@@ -14,23 +14,10 @@ const (
 	DstExistsActionSkip
 )
 
-func Copy(src, dst string, onDstExists func() DstExistsAction) error {
+func Copy(src, dst string) error {
 	srcStat, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("failed to get stat : %w", err)
-	}
-	_, err = os.Stat(dst)
-	if err == nil {
-		if onDstExists != nil {
-			action := onDstExists()
-			if action == DstExistsActionOverWrite {
-				os.RemoveAll(dst)
-			} else {
-				return nil
-			}
-		} else {
-			return nil
-		}
 	}
 	if srcStat.IsDir() {
 		entries, _ := readDirRecursively(src, dst, "/")
@@ -123,4 +110,9 @@ func readDirRecursively(srcBase string, dstBase string, relativePath string) ([]
 		}
 	}
 	return result, nil
+}
+
+func Exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

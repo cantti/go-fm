@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"gofm/fsutils"
-	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -102,19 +101,22 @@ func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
 }
 
-func (m *mainView) showExists(file string) fsutils.DstExistsAction {
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	var action fsutils.DstExistsAction
+func (m *mainView) showExists(file string, done func(a fsutils.DstExistsAction)) {
 	modal := newExistsView(file, func(a fsutils.DstExistsAction) {
-		action = a
-		wg.Done()
+		m.pages.RemovePage("exists")
+		m.app.SetFocus(m.lastFocusedDir.list)
+		done(a)
 	})
 	m.pages.AddPage("exists", modal, false, true)
-	wg.Wait()
-	m.pages.HidePage("exists")
-	m.app.SetFocus(m.lastFocusedDir.list)
-	return action
+}
+
+func (m *mainView) showConfirmDelete(files []dirEntry, done func(a ConfirmDeleteAction)) {
+	modal := newConfirmDeleteView(files, func(a ConfirmDeleteAction) {
+		m.pages.RemovePage("confirmDelete")
+		m.app.SetFocus(m.lastFocusedDir.list)
+		done(a)
+	})
+	m.pages.AddPage("confirmDelete", modal, false, true)
 }
 
 func (m *mainView) showQuit() {
@@ -131,21 +133,6 @@ func (m *mainView) showHelp() {
 		m.pages.RemovePage("help")
 	})
 	m.pages.AddPage("help", modal, false, true)
-}
-
-func (m *mainView) showConfirmDelete(files []string) ConfirmDeleteAction {
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	var action ConfirmDeleteAction
-	modal := newConfirmDeleteView(files, func(a ConfirmDeleteAction) {
-		action = a
-		wg.Done()
-	})
-	m.pages.AddPage("confirmDelete", modal, false, true)
-	wg.Wait()
-	m.pages.HidePage("confirmDelete")
-	m.app.SetFocus(m.lastFocusedDir.list)
-	return action
 }
 
 func (m *mainView) setStatus(text string) {

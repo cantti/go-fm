@@ -12,10 +12,10 @@ const (
 	ConfirmDeleteYes
 )
 
-func newConfirmDeleteView(files []string, done func(a ConfirmDeleteAction)) *tview.Modal {
+func newConfirmDeleteView(files []dirEntry, done func(a ConfirmDeleteAction)) *tview.Modal {
 	var text string
 	if len(files) == 1 {
-		text = fmt.Sprintf("%s \n Do you want to delete it?", files[0])
+		text = fmt.Sprintf("%s \n Do you want to delete it?", files[0].path)
 	} else {
 		text = fmt.Sprintf("Do you want to delete %v files?", len(files))
 	}

@@ -31,12 +31,12 @@ type dirView struct {
 
 	no      int
 	dirPath string
-	entries []*dirEntry
+	entries []dirEntry
 }
 
 func newDirView(m *mainView, no int) *dirView {
 	col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
-	d := &dirView{entries: []*dirEntry{}, main: m, no: no}
+	d := &dirView{entries: []dirEntry{}, main: m, no: no}
 	d.pathInput = tview.NewInputField().SetText(d.dirPath)
 	d.pathInput.SetBorder(true)
 	d.pathInput.SetDoneFunc(func(key tcell.Key) {
@@ -97,75 +97,85 @@ func (d *dirView) handleOpenDirFromList() error {
 }
 
 func (d *dirView) handleCopyClick() {
-	go func() {
-		var selected []*dirEntry
-		for _, e := range d.entries {
-			if e.selected {
-				selected = append(selected, e)
-			}
+	selected := d.getSelected()
+	d.copyFrom(selected, 0, nil, 0)
+}
+
+func (d *dirView) copyFrom(selected []dirEntry, start int, act *fsutils.DstExistsAction, total int) {
+	for i := start; i < len(selected); i++ {
+		e := selected[i]
+		if e.name == ".." {
+			continue
 		}
-		if len(selected) == 0 {
-			selected = append(selected, d.entries[d.list.GetCurrentItem()])
+		src := e.path
+		dst := filepath.Join(d.otherDir.dirPath, e.name)
+		if src == dst {
+			d.main.setStatus("Copy failed. Source and destination are the same!")
+			return
 		}
-		total := 0
-		for _, e := range selected {
-			if e.name == ".." {
-				continue
-			}
-			src := e.path
-			dst := filepath.Join(d.otherDir.dirPath, e.name)
-			if src == dst {
-				d.main.setStatus("Copy failed. Source and destination are the same!")
+
+		if fsutils.Exists(dst) {
+			// action was not selected for current fil
+			if act == nil {
+				d.main.showExists(dst, func(a fsutils.DstExistsAction) {
+					d.copyFrom(selected, i, &a, total)
+				})
 				return
-			}
-			total++
-			err := fsutils.Copy(src, dst, func() fsutils.DstExistsAction {
-				action := d.main.showExists(dst)
-				if action == fsutils.DstExistsActionSkip {
-					total--
+			} else {
+				// if skip continue, if not copy to override
+				if *act == fsutils.DstExistsActionSkip {
+					act = nil
+					continue
 				}
-				return action
-			})
-			if err != nil {
-				d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
+				act = nil
 			}
-			d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", total))
 		}
-		d.otherDir.readDir(d.otherDir.dirPath)
-		d.main.app.Draw()
-	}()
+
+		total++
+
+		err := fsutils.Copy(src, dst)
+
+		if err != nil {
+			d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
+		}
+	}
+	d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", total))
+	d.otherDir.readDir(d.otherDir.dirPath)
+}
+
+func (d *dirView) getSelected() []dirEntry {
+	var selected []dirEntry
+	for _, e := range d.entries {
+		if e.selected {
+			selected = append(selected, e)
+		}
+	}
+	if len(selected) == 0 {
+		selected = append(selected, d.entries[d.list.GetCurrentItem()])
+	}
+	return selected
 }
 
 func (d *dirView) handleDeleteClick() {
-	go func() {
-		var selected []string
-		for _, e := range d.entries {
-			if e.selected {
-				selected = append(selected, e.path)
-			}
-		}
-		if len(selected) == 0 {
-			selected = append(selected, d.entries[d.list.GetCurrentItem()].path)
-		}
-		action := d.main.showConfirmDelete(selected)
-		if action == ConfirmDeleteNo {
-			d.main.setStatus("Delete canceled")
-		} else {
+	selected := d.getSelected()
+	d.main.showConfirmDelete(selected, func(a ConfirmDeleteAction) {
+		if a == ConfirmDeleteYes {
 			for _, p := range selected {
-				os.RemoveAll(p)
+				os.RemoveAll(p.path)
 			}
+			d.readDir(d.dirPath)
 			d.main.setStatus(fmt.Sprintf("Delete completed, %v entries deleted", len(selected)))
+		} else {
+			d.main.setStatus("Delete canceled")
 		}
-		d.readDir(d.dirPath)
-		d.main.app.Draw()
-	}()
+	})
 }
 
 func (d *dirView) readDir(path string) {
 	d.list.Clear()
 	d.list.SetOffset(0, 0)
 	d.entries = nil
-	d.entries = append(d.entries, &dirEntry{name: "..", displayName: "/.."})
+	d.entries = append(d.entries, dirEntry{name: "..", displayName: "/.."})
 	files, _ := os.ReadDir(path)
 	for _, e := range files {
 		displayName := e.Name()
@@ -174,13 +184,13 @@ func (d *dirView) readDir(path string) {
 		} else {
 			displayName = " " + displayName
 		}
-		d.entries = append(d.entries, &dirEntry{
+		d.entries = append(d.entries, dirEntry{
 			path:        filepath.Join(path, e.Name()),
 			name:        e.Name(),
 			displayName: displayName,
 			isDir:       e.IsDir()})
 	}
-	slices.SortFunc(d.entries, func(a, b *dirEntry) int {
+	slices.SortFunc(d.entries, func(a, b dirEntry) int {
 		return cmp.Or(
 			func() int {
 				if a.name == ".." && b.name != ".." {
