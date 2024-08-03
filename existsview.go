@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"gofm/fsutils"
+	"sync"
 
 	"github.com/rivo/tview"
 )
@@ -12,6 +13,7 @@ type existsView struct {
 
 	file   string
 	action fsutils.DstExistsAction
+	wg     *sync.WaitGroup
 }
 
 func newExistsView(m *mainView) *existsView {
@@ -24,11 +26,17 @@ func newExistsView(m *mainView) *existsView {
 			} else {
 				v.action = fsutils.DstExistsActionSkip
 			}
-			m.wg.Done()
+			v.wg.Done()
 		})
 	return v
 }
 
-func (e *existsView) SetData(file string) {
+func (e *existsView) SetData(file string) *existsView {
 	e.element.SetText(fmt.Sprintf("%s \n Entry exists. What to do?", file))
+	return e
+}
+
+func (e *existsView) SetWg(wg *sync.WaitGroup) *existsView {
+	e.wg = wg
+	return e
 }

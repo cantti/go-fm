@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/rivo/tview"
 )
@@ -16,6 +17,7 @@ const (
 type confirmDeleteView struct {
 	element *tview.Modal
 	action  ConfirmDeleteAction
+	wg      *sync.WaitGroup
 }
 
 func newConfirmDeleteView(m *mainView) *confirmDeleteView {
@@ -28,12 +30,13 @@ func newConfirmDeleteView(m *mainView) *confirmDeleteView {
 			} else {
 				v.action = ConfirmDeleteNo
 			}
-			m.wg.Done()
+			v.wg.Done()
 		})
 	return v
 }
 
-func (e *confirmDeleteView) SetData(files []string) {
+func (e *confirmDeleteView) SetData(files []string, wg *sync.WaitGroup) {
+	e.wg = wg
 	if len(files) == 1 {
 		e.element.SetText(fmt.Sprintf("%s \n Do you want to delete it?", files[0]))
 	} else {

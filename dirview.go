@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -120,8 +121,9 @@ func (d *dirView) handleCopyClick() {
 			}
 			total++
 			err := fsutils.Copy(src, dst, func() fsutils.DstExistsAction {
-				d.main.showExists(dst)
-				d.main.wg.Wait()
+				wg := new(sync.WaitGroup)
+				d.main.showExists(dst, wg)
+				wg.Wait()
 				if d.main.existsView.action == fsutils.DstExistsActionSkip {
 					total--
 				}
@@ -148,8 +150,9 @@ func (d *dirView) handleDeleteClick() {
 		if len(selected) == 0 {
 			selected = append(selected, d.entries[d.list.GetCurrentItem()].path)
 		}
-		d.main.showConfirmDelete(selected)
-		d.main.wg.Wait()
+		wg := new(sync.WaitGroup)
+		d.main.showConfirmDelete(selected, wg)
+		wg.Wait()
 		if d.main.confirmDeleteView.action == ConfirmDeleteNo {
 			d.main.setStatus("Delete canceled")
 		} else {

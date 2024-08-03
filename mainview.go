@@ -15,7 +15,6 @@ type mainView struct {
 	statusBar *tview.TextView
 	quitView  *tview.Modal
 
-	wg                sync.WaitGroup
 	renameView        *renameView
 	dir0              *dirView
 	dir1              *dirView
@@ -107,12 +106,12 @@ func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
 }
 
-func (m *mainView) showExists(file string) {
-	m.wg.Add(1)
-	m.existsView.SetData(file)
+func (m *mainView) showExists(file string, wg *sync.WaitGroup) {
+	m.existsView.SetData(file).SetWg(wg)
+	wg.Add(1)
 	m.pages.ShowPage("exists")
 	go func() {
-		m.wg.Wait()
+		wg.Wait()
 		m.pages.HidePage("exists")
 		m.app.SetFocus(m.lastFocusedDir.list)
 	}()
@@ -127,12 +126,12 @@ func (m *mainView) hideQuit() {
 	m.app.SetFocus(m.lastFocusedDir.list)
 }
 
-func (m *mainView) showConfirmDelete(files []string) {
-	m.wg.Add(1)
-	m.confirmDeleteView.SetData(files)
+func (m *mainView) showConfirmDelete(files []string, wg *sync.WaitGroup) {
+	m.confirmDeleteView.SetData(files, wg)
+	wg.Add(1)
 	m.pages.ShowPage("confirmDelete")
 	go func() {
-		m.wg.Wait()
+		wg.Wait()
 		m.pages.HidePage("confirmDelete")
 		m.app.SetFocus(m.lastFocusedDir.list)
 	}()
