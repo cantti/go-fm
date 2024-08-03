@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gofm/fsutils"
 	"os"
+	"os/user"
 	"path/filepath"
 	"slices"
 
@@ -34,14 +35,23 @@ type dirView struct {
 }
 
 func newDirView(m *mainView, no int) *dirView {
-	col := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
+	element := tview.NewFlex().SetDirection(tview.FlexColumnCSS)
 	d := &dirView{entries: []dirEntry{}, main: m, no: no}
+
+	// add input
 	d.pathInput = tview.NewInputField().SetText(d.dirPath)
+	d.pathInput.SetFieldBackgroundColor(tcell.ColorBlack)
 	d.pathInput.SetBorder(true)
 	d.pathInput.SetDoneFunc(func(key tcell.Key) {
 		d.readDir(d.pathInput.GetText())
 	})
-	col.AddItem(d.pathInput, 3, 1, false)
+	element.AddItem(d.pathInput, 3, 1, false)
+
+	// add toolbar
+	toolbar := drawToolbar(d)
+	element.AddItem(toolbar, 1, 0, false)
+
+	// add list
 	d.list = tview.
 		NewList().
 		ShowSecondaryText(false)
@@ -84,9 +94,20 @@ func newDirView(m *mainView, no int) *dirView {
 			d.main.setStatus(fmt.Sprintf("failed to call handleOpenDirFromList : %v", err))
 		}
 	})
-	col.AddItem(d.list, 0, 1, false)
-	d.element = col
+	element.AddItem(d.list, 0, 1, false)
+
+	d.element = element
 	return d
+}
+
+func drawToolbar(d *dirView) *tview.Flex {
+	toolbar := tview.NewFlex().SetDirection(tview.FlexRowCSS)
+	toolbar.AddItem(tview.NewBox(), 1, 0, false)
+	toolbar.AddItem(tview.NewButton("Home dir").SetSelectedFunc(d.openHomeDir), 0, 1, false)
+	toolbar.AddItem(tview.NewBox(), 1, 0, false)
+	toolbar.AddItem(tview.NewButton("Sync path").SetSelectedFunc(d.syncPath), 0, 1, false)
+	toolbar.AddItem(tview.NewBox(), 1, 0, false)
+	return toolbar
 }
 
 func (d *dirView) handleOpenDirFromList(index int) error {
@@ -98,7 +119,6 @@ func (d *dirView) handleOpenDirFromList(index int) error {
 	}
 	if stat.IsDir() {
 		d.readDir(newPath)
-		d.pathInput.SetText(newPath)
 	}
 	return nil
 }
@@ -179,6 +199,10 @@ func (d *dirView) handleDeleteClick() {
 }
 
 func (d *dirView) readDir(path string) {
+	if !fsutils.Exists(path) {
+		d.pathInput.SetText(d.dirPath)
+		return
+	}
 	d.list.Clear()
 	d.list.SetOffset(0, 0)
 	d.entries = nil
@@ -224,6 +248,7 @@ func (d *dirView) readDir(path string) {
 		d.list.AddItem(e.displayName, "", 0, nil)
 	}
 	d.dirPath = path
+	d.pathInput.SetText(d.dirPath)
 }
 
 func (d *dirView) drawSelections() {
@@ -234,4 +259,13 @@ func (d *dirView) drawSelections() {
 			d.list.SetItemText(i, d.entries[i].displayName, "")
 		}
 	}
+}
+
+func (d *dirView) syncPath() {
+	d.readDir(d.otherDir.dirPath)
+}
+
+func (d *dirView) openHomeDir() {
+	user, _ := user.Current()
+	d.readDir(user.HomeDir)
 }
