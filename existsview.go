@@ -8,7 +8,6 @@ import (
 )
 
 type existsView struct {
-	main    *mainView
 	element *tview.Modal
 
 	file   string
@@ -25,13 +24,11 @@ func newExistsView(m *mainView) *existsView {
 			} else {
 				v.action = fsutils.DstExistsActionSkip
 			}
-			m.hideExists()
+			m.wg.Done()
 		})
-	v.SetData("")
 	return v
 }
 
 func (e *existsView) SetData(file string) {
-	e.action = fsutils.DstExistsActionSkip
 	e.element.SetText(fmt.Sprintf("%s \n Entry exists. What to do?", file))
 }

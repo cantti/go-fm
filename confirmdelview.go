@@ -9,15 +9,13 @@ import (
 type ConfirmDeleteAction int
 
 const (
-	ConfirmDeleteYes ConfirmDeleteAction = iota
-	ConfirmDeleteNo
+	ConfirmDeleteNo ConfirmDeleteAction = iota
+	ConfirmDeleteYes
 )
 
 type confirmDeleteView struct {
-	main    *mainView
 	element *tview.Modal
-
-	action ConfirmDeleteAction
+	action  ConfirmDeleteAction
 }
 
 func newConfirmDeleteView(m *mainView) *confirmDeleteView {
@@ -30,14 +28,12 @@ func newConfirmDeleteView(m *mainView) *confirmDeleteView {
 			} else {
 				v.action = ConfirmDeleteNo
 			}
-			m.hideConfirmDelete()
+			m.wg.Done()
 		})
-	v.SetData(nil)
 	return v
 }
 
 func (e *confirmDeleteView) SetData(files []string) {
-	e.action = ConfirmDeleteYes
 	if len(files) == 1 {
 		e.element.SetText(fmt.Sprintf("%s \n Do you want to delete it?", files[0]))
 	} else {

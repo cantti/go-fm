@@ -68,9 +68,9 @@ func newDirView(m *mainView, no int) *dirView {
 				log.Fatalf("failed to call handleOpenDirFromList : %v", err)
 			}
 		} else if event.Key() == tcell.KeyF5 {
-			go d.handleCopyClick()
+			d.handleCopyClick()
 		} else if event.Key() == tcell.KeyF8 {
-			go d.handleDeleteClick()
+			d.handleDeleteClick()
 		}
 		return event
 	})
@@ -97,59 +97,70 @@ func (d *dirView) handleOpenDirFromList() error {
 }
 
 func (d *dirView) handleCopyClick() {
-	var selected []*dirEntry
-	for _, e := range d.entries {
-		if e.selected {
-			selected = append(selected, e)
+	go func() {
+		var selected []*dirEntry
+		for _, e := range d.entries {
+			if e.selected {
+				selected = append(selected, e)
+			}
 		}
-	}
-	if len(selected) == 0 {
-		selected = append(selected, d.entries[d.list.GetCurrentItem()])
-	}
-	for _, e := range selected {
-		if e.name == ".." {
-			continue
+		if len(selected) == 0 {
+			selected = append(selected, d.entries[d.list.GetCurrentItem()])
 		}
-		src := e.path
-		dst := filepath.Join(d.otherDir.dirPath, e.name)
-		if src == dst {
-			d.main.setStatus("Copy failed. Source and destination are the same!")
-			return
+		total := 0
+		for _, e := range selected {
+			if e.name == ".." {
+				continue
+			}
+			src := e.path
+			dst := filepath.Join(d.otherDir.dirPath, e.name)
+			if src == dst {
+				d.main.setStatus("Copy failed. Source and destination are the same!")
+				return
+			}
+			total++
+			err := fsutils.Copy(src, dst, func() fsutils.DstExistsAction {
+				d.main.showExists(dst)
+				d.main.wg.Wait()
+				if d.main.existsView.action == fsutils.DstExistsActionSkip {
+					total--
+				}
+				return d.main.existsView.action
+			})
+			if err != nil {
+				d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
+			}
+			d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", total))
 		}
-		err := fsutils.Copy(src, dst, func() fsutils.DstExistsAction {
-			d.main.showExists(dst)
-			d.main.modalWg.Wait()
-			return d.main.existsView.action
-		})
-		if err != nil {
-			d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
-		}
-		d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", len(selected)))
-	}
-	d.otherDir.readDir(d.otherDir.dirPath)
+		d.otherDir.readDir(d.otherDir.dirPath)
+		d.main.app.Draw()
+	}()
 }
 
 func (d *dirView) handleDeleteClick() {
-	var selected []string
-	for _, e := range d.entries {
-		if e.selected {
-			selected = append(selected, e.path)
+	go func() {
+		var selected []string
+		for _, e := range d.entries {
+			if e.selected {
+				selected = append(selected, e.path)
+			}
 		}
-	}
-	if len(selected) == 0 {
-		selected = append(selected, d.entries[d.list.GetCurrentItem()].path)
-	}
-	d.main.showConfirmDelete(selected)
-	d.main.modalWg.Wait()
-	if d.main.confirmDeleteView.action == ConfirmDeleteNo {
-		d.main.setStatus("Delete canceled")
-	} else {
-		for _, p := range selected {
-			os.RemoveAll(p)
+		if len(selected) == 0 {
+			selected = append(selected, d.entries[d.list.GetCurrentItem()].path)
 		}
-		d.main.setStatus(fmt.Sprintf("Delete completed, %v entries deleted", len(selected)))
-	}
-	d.readDir(d.dirPath)
+		d.main.showConfirmDelete(selected)
+		d.main.wg.Wait()
+		if d.main.confirmDeleteView.action == ConfirmDeleteNo {
+			d.main.setStatus("Delete canceled")
+		} else {
+			for _, p := range selected {
+				os.RemoveAll(p)
+			}
+			d.main.setStatus(fmt.Sprintf("Delete completed, %v entries deleted", len(selected)))
+		}
+		d.readDir(d.dirPath)
+		d.main.app.Draw()
+	}()
 }
 
 func (d *dirView) readDir(path string) {
