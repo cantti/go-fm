@@ -125,49 +125,8 @@ func (d *dirView) handleOpenDirFromList(index int) error {
 
 func (d *dirView) handleCopyClick() {
 	selected := d.getSelected()
-	d.copyFrom(selected, 0, nil, 0)
-}
-
-func (d *dirView) copyFrom(selected []dirEntry, start int, act *DstExistsAction, total int) {
-	for i := start; i < len(selected); i++ {
-		e := selected[i]
-		if e.name == ".." {
-			continue
-		}
-		src := e.path
-		dst := filepath.Join(d.otherDir.dirPath, e.name)
-		if src == dst {
-			d.main.setStatus("Copy failed. Source and destination are the same!")
-			return
-		}
-
-		if fsutils.Exists(dst) {
-			// action was not selected for current fil
-			if act == nil {
-				d.main.showExists(dst, func(a DstExistsAction) {
-					d.copyFrom(selected, i, &a, total)
-				})
-				return
-			} else {
-				// if skip continue, if not copy to override
-				if *act == DstExistsActionSkip {
-					act = nil
-					continue
-				}
-				act = nil
-			}
-		}
-
-		total++
-
-		err := fsutils.Copy(src, dst)
-
-		if err != nil {
-			d.main.setStatus(fmt.Errorf("Copy failed : %w", err).Error())
-		}
-	}
-	d.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", total))
-	d.otherDir.readDir(d.otherDir.dirPath)
+	command := newCopyCommand(selected, d)
+	command.execute()
 }
 
 func (d *dirView) getSelected() []dirEntry {

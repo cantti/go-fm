@@ -9,7 +9,8 @@ import (
 type DstExistsAction int
 
 const (
-	DstExistsActionOverWrite DstExistsAction = iota
+	DstExistsActionNotSelected DstExistsAction = iota
+	DstExistsActionOverWrite
 	DstExistsActionSkip
 )
 
