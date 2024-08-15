@@ -21,6 +21,10 @@ type mainView struct {
 	toolbar        *toolbarView
 }
 
+type command interface {
+	execute()
+}
+
 func newMainView() *mainView {
 	mainView := &mainView{
 		renameView: &renameView{}}
@@ -98,24 +102,6 @@ func (m *mainView) drawQuit() {
 
 func (tui *mainView) showRenameWin() {
 	tui.pages.ShowPage("rename")
-}
-
-func (m *mainView) showExists(file string, done func(a DstExistsAction)) {
-	modal := newExistsView(file, func(a DstExistsAction) {
-		m.pages.RemovePage("exists")
-		m.app.SetFocus(m.lastFocusedDir.list)
-		done(a)
-	})
-	m.pages.AddPage("exists", modal, false, true)
-}
-
-func (m *mainView) showConfirmDelete(files []dirEntry, done func(a ConfirmDeleteAction)) {
-	modal := newConfirmDeleteView(files, func(a ConfirmDeleteAction) {
-		m.pages.RemovePage("confirmDelete")
-		m.app.SetFocus(m.lastFocusedDir.list)
-		done(a)
-	})
-	m.pages.AddPage("confirmDelete", modal, false, true)
 }
 
 func (m *mainView) showQuit() {

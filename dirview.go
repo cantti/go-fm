@@ -123,12 +123,6 @@ func (d *dirView) handleOpenDirFromList(index int) error {
 	return nil
 }
 
-func (d *dirView) handleCopyClick() {
-	selected := d.getSelected()
-	command := newCopyCommand(selected, d)
-	command.execute()
-}
-
 func (d *dirView) getSelected() []dirEntry {
 	var selected []dirEntry
 	for _, e := range d.entries {
@@ -142,19 +136,12 @@ func (d *dirView) getSelected() []dirEntry {
 	return selected
 }
 
+func (d *dirView) handleCopyClick() {
+	newCopyCommand(d).execute()
+}
+
 func (d *dirView) handleDeleteClick() {
-	selected := d.getSelected()
-	d.main.showConfirmDelete(selected, func(a ConfirmDeleteAction) {
-		if a == ConfirmDeleteYes {
-			for _, p := range selected {
-				os.RemoveAll(p.path)
-			}
-			d.readDir(d.dirPath)
-			d.main.setStatus(fmt.Sprintf("Delete completed, %v entries deleted", len(selected)))
-		} else {
-			d.main.setStatus("Delete canceled")
-		}
-	})
+	newDeleteCommand(d).execute()
 }
 
 func (d *dirView) readDir(path string) {

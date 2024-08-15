@@ -14,14 +14,20 @@ type copyCommand struct {
 	total           int
 }
 
-func newCopyCommand(entries []dirEntry, dirView *dirView) *copyCommand {
-	command := &copyCommand{
-		entries: entries,
-		dirView: dirView}
+func newCopyCommand(dirView *dirView) command {
+	command := &copyCommand{dirView: dirView}
 	return command
 }
 
 func (r *copyCommand) execute() {
+	// reset state
+	r.entries = r.dirView.getSelected()
+	r.from = 0
+	r.total = 0
+	r.copy()
+}
+
+func (r *copyCommand) copy() {
 	for i := r.from; i < len(r.entries); i++ {
 		// cache old action and set actual to not selected
 		act := r.dstExistsAction
@@ -40,10 +46,10 @@ func (r *copyCommand) execute() {
 		if fsutils.Exists(dst) {
 			// action was not selected for current fil
 			if act == DstExistsActionNotSelected {
-				r.dirView.main.showExists(dst, func(a DstExistsAction) {
+				r.showExists(dst, func(a DstExistsAction) {
 					r.from = i
 					r.dstExistsAction = a
-					r.execute()
+					r.copy()
 				})
 				return
 			} else {
@@ -64,4 +70,13 @@ func (r *copyCommand) execute() {
 	}
 	r.dirView.main.setStatus(fmt.Sprintf("Copy completed, %v entries created", r.total))
 	r.dirView.otherDir.readDir(r.dirView.otherDir.dirPath)
+}
+
+func (r *copyCommand) showExists(file string, done func(a DstExistsAction)) {
+	modal := newExistsView(file, func(a DstExistsAction) {
+		r.dirView.main.pages.RemovePage("exists")
+		r.dirView.main.app.SetFocus(r.dirView.list)
+		done(a)
+	})
+	r.dirView.main.pages.AddPage("exists", modal, false, true)
 }
